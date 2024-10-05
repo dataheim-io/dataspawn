@@ -1,0 +1,70 @@
+dataContractSpecification: 0.9.3
+id: my-data-contract-id
+info:
+  title: My Data Contract
+  version: 0.0.1
+  description: TODO
+
+servers:
+  production:
+    type: dataframe
+
+models:
+  example_model:
+    type: table
+    fields:
+      string_field_email:
+        type: string
+        format: email
+      string_field_uri:
+        type: string
+        format: uri
+        required: true
+        minLength: 30
+      string_field_uuid:
+        type: string
+        format: uuid
+      string_name_field:
+        type: string
+        faker: name
+      string_field_pattern:
+        type: string
+        pattern: a-zA-Z0-9
+        minLength: 5
+        maxLength: 50
+      string_field_simple:
+        type: string
+      integer_field_simple:
+        type: integer
+      integer_field_min:
+        type: integer
+        minimum: 0
+      integer_field_max:
+        type: integer
+        maximum: 0
+      integer_field_minmax:
+        type: integer
+        minimum: -10
+        maximum: 10
+        required: true
+      float_field_simple:
+        type: float
+      float_field_minmax:
+        type: float
+        minimum: -10
+        maximum: 10
+      double_field_simple:
+        type: double
+      double_field_minmax:
+        type: double
+        minimum: -10
+        maximum: 10
+      null_field:
+        description: TODO.
+      airport:
+        type: string
+        faker: airline
+      decimal_type_one:
+        type: decimal
+        precision: 10
+        scale: 2

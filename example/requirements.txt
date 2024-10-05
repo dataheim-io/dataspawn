@@ -1,0 +1,2 @@
+../dist/dataspawner-0.1.0-py3-none-any.whl
+faker_airtravel==0.4
