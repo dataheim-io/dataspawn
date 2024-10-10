@@ -10,6 +10,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from decimal import Decimal, getcontext
 from typing import Any
 
+import numpy as np
 from datacontract.data_contract import DataContract
 from datacontract.export.spark_converter import to_spark_schema
 from datacontract.model.data_contract_specification import Field
@@ -19,7 +20,7 @@ from rstr import xeger
 
 
 def get_min_max(
-    field: Field, min_value: int | float, max_value: int | float
+    field: Field,
 ) -> tuple[int | float, int | float]:
     """Get the minimum and maximum values for a specified field.
 
@@ -32,18 +33,26 @@ def get_min_max(
         field (Field): The field for which the minimum and maximum
             values are to be fetched. This should be an instance of
             the Field class that represents a valid data column.
-        min_value (int | float): The minimum boundary for the values
-            to be considered. If the actual minimum value is lower
-            than this, the actual minimum will be returned instead.
-        max_value (int | float): The maximum boundary for the values
-            to be considered. If the actual maximum value exceeds
-            this, the actual maximum will be returned instead.
 
     Returns:
         tuple[int | float, int | float]: A tuple containing the
             adjusted minimum and maximum values for the specified
             field, respecting the provided boundaries.
     """
+    min_value, max_value = 1e-10, 1e10
+    if field.type == "int" or field.type == "integer":  # 32-bit signed integer
+        min_value = -2 ** 31
+        max_value = 2 ** 31 - 1
+    elif field.type == "long":  # 64-bit signed integer
+        min_value = -2 ** 63
+        max_value = 2 ** 63 - 1
+    elif field.type == "float":  # 32-bit single precision float
+        min_value = float(np.finfo(np.float32).tiny / 1e+10)
+        max_value = float(np.finfo(np.float32).max / 1e+10)
+    elif field.type == "double":  # 64-bit double precision float
+        min_value = float(np.finfo(np.float64).tiny / 1e+10)
+        max_value = float(np.finfo(np.float64).max / 1e+10)
+
     minimum = field.minimum or min_value
     maximum = field.maximum or max_value
     exclusive_minimum = field.exclusiveMinimum or min_value
@@ -59,6 +68,106 @@ def get_min_max(
         maximum_value = 0
 
     return minimum_value, maximum_value
+
+
+def generate_unsigned_value(
+    field: Field,
+) -> float:
+    """Generate a synthetic uniform float value for a specified field.
+
+    This method generates a random float value uniformly distributed
+    within the range defined by the minimum and maximum constraints of
+    the given field. The generated value is rounded to the specified
+    number of decimal places.
+
+    Args:
+        field (Field): The field for which the uniform float value is
+            to be generated. This should be an instance of the Field
+            class that outlines the criteria for generating the float.
+
+    Returns:
+        float: A randomly generated float value within the specified
+            range for the field, rounded to the specified number of
+            decimal places.
+    """
+    minimum_value, maximum_value = get_min_max(field)
+    decimal_places = field.scale if field.scale else 0
+
+    return round(random.uniform(minimum_value, maximum_value), decimal_places)
+
+
+def generate_decimal_value(
+        field: Field,
+) -> Decimal:
+    """Generate a synthetic decimal value for a specified field.
+
+    This method generates a random decimal value based on the
+    precision and scale defined for the provided field. It ensures
+    that the generated decimal adheres to the specified precision
+    and scale constraints, raising errors for invalid inputs.
+
+    Args:
+        field (Field): The field for which the decimal value is to be
+            generated. This should be an instance of the Field class
+            that specifies the precision and scale for the generated
+            decimal.
+
+    Raises:
+        ValueError: If the precision or scale is not an integer, if
+            precision exceeds 38, or if the scale exceeds the
+            specified precision.
+
+    Returns:
+        Decimal: A randomly generated decimal value formatted according
+            to the specified precision and scale.
+    """
+    precision = field.precision if field.precision is not None else 10
+    scale = field.scale if field.scale is not None else 0
+
+    if not isinstance(precision, int) or not isinstance(scale, int):
+        raise ValueError("Precision and scale must be integers.")
+
+    if precision > 38:
+        raise ValueError("Precision must be less than 38.")
+    if precision < scale:
+        raise ValueError("The scale must be less or equal to precision.")
+
+    getcontext().prec = precision
+
+    int_part = random.randint(0, 10 ** (precision - scale) - 1)
+
+    if scale > 0:
+        frac_part = random.randint(0, 10**scale - 1)
+        decimal_str = f"{int_part}.{frac_part:0{scale}d}"
+    else:
+        decimal_str = f"{int_part}"
+
+    return Decimal(decimal_str)
+
+
+def generate_signed_value(
+        field: Field,
+) -> int:
+    """Generate a synthetic signed value for a specified field.
+
+    This method generates a random integer value based on the minimum
+    and maximum constraints defined for the given field. It retrieves
+    the constraints using the `get_min_max` function and ensures the
+    generated value falls within this range.
+
+    Args:
+        field (Field): The field for which the integer value is to be
+            generated. This should be an instance of the Field class
+            that specifies the criteria for generating the integer.
+
+    Returns:
+        int: A randomly generated integer value within the specified
+            range for the field. The value will be inclusive of the
+            minimum and maximum bounds defined for the field.
+    """
+    minimum_value, maximum_value = get_min_max(field)
+
+    return random.randint(int(minimum_value), int(maximum_value))
 
 
 class DataSpawner:
@@ -215,109 +324,6 @@ class DataSpawner:
 
         return string_value
 
-    def generate_integer_value(
-        self,
-        field: Field,
-    ) -> int:
-        """Generate a synthetic integer value for a specified field.
-
-        This method generates a random integer value based on the minimum
-        and maximum constraints defined for the given field. It retrieves
-        the constraints using the `get_min_max` function and ensures the
-        generated value falls within this range.
-
-        Args:
-            field (Field): The field for which the integer value is to be
-                generated. This should be an instance of the Field class
-                that specifies the criteria for generating the integer.
-
-        Returns:
-            int: A randomly generated integer value within the specified
-                range for the field. The value will be inclusive of the
-                minimum and maximum bounds defined for the field.
-        """
-        minimum_value, maximum_value = get_min_max(field, -(2**31), 2**31 - 1)
-
-        return random.randint(int(minimum_value), int(maximum_value))
-
-    def generate_uniform_value(
-        self,
-        field: Field,
-        decimal_places=2,
-    ) -> float:
-        """Generate a synthetic uniform float value for a specified field.
-
-        This method generates a random float value uniformly distributed
-        within the range defined by the minimum and maximum constraints of
-        the given field. The generated value is rounded to the specified
-        number of decimal places.
-
-        Args:
-            field (Field): The field for which the uniform float value is
-                to be generated. This should be an instance of the Field
-                class that outlines the criteria for generating the float.
-
-            decimal_places (int, optional): The number of decimal places to
-                which the generated value will be rounded. Defaults to 2.
-
-        Returns:
-            float: A randomly generated float value within the specified
-                range for the field, rounded to the specified number of
-                decimal places.
-        """
-        minimum_value, maximum_value = get_min_max(field, 1e-10, 1e10)
-
-        return round(random.uniform(minimum_value, maximum_value), decimal_places)
-
-    def generate_decimal_value(
-        self,
-        field: Field,
-    ) -> Decimal:
-        """Generate a synthetic decimal value for a specified field.
-
-        This method generates a random decimal value based on the
-        precision and scale defined for the provided field. It ensures
-        that the generated decimal adheres to the specified precision
-        and scale constraints, raising errors for invalid inputs.
-
-        Args:
-            field (Field): The field for which the decimal value is to be
-                generated. This should be an instance of the Field class
-                that specifies the precision and scale for the generated
-                decimal.
-
-        Raises:
-            ValueError: If the precision or scale is not an integer, if
-                precision exceeds 38, or if the scale exceeds the
-                specified precision.
-
-        Returns:
-            Decimal: A randomly generated decimal value formatted according
-                to the specified precision and scale.
-        """
-        precision = field.precision if field.precision is not None else 10
-        scale = field.scale if field.scale is not None else 0
-
-        if not isinstance(precision, int) or not isinstance(scale, int):
-            raise ValueError("Precision and scale must be integers.")
-
-        if precision > 38:
-            raise ValueError("Precision must be less than 38.")
-        if precision < scale:
-            raise ValueError("The scale must be less or equal to precision.")
-
-        getcontext().prec = precision
-
-        int_part = random.randint(0, 10 ** (precision - scale) - 1)
-
-        if scale > 0:
-            frac_part = random.randint(0, 10**scale - 1)
-            decimal_str = f"{int_part}.{frac_part:0{scale}d}"
-        else:
-            decimal_str = f"{int_part}"
-
-        return Decimal(decimal_str)
-
     def generate_row(
         self,
     ):
@@ -339,24 +345,24 @@ class DataSpawner:
                 row.append(None)
             elif faker_value:
                 row.append(faker_value)
-            elif isinstance(field_data_type, types.StringType):
+            elif isinstance(field_data_type, types.StringType) or field.type == "string":
                 row.append(self.generate_string_value(field))
-            elif isinstance(field_data_type, types.IntegerType):
-                row.append(self.generate_integer_value(field))
-            elif isinstance(field_data_type, types.FloatType):  # TODO
-                row.append(self.generate_uniform_value(field))
-            elif isinstance(field_data_type, types.DoubleType):  # TODO
-                row.append(self.generate_uniform_value(field, 5))
+            elif isinstance(field_data_type, types.IntegerType) or field.type == "int" or field.type == "integer":
+                row.append(generate_signed_value(field))
+            elif isinstance(field_data_type, types.LongType) or field.type == "long":
+                row.append(generate_signed_value(field))
+            elif isinstance(field_data_type, types.FloatType) or field.type == "float":
+                row.append(generate_unsigned_value(field))
+            elif isinstance(field_data_type, types.DoubleType) or field.type == "double":
+                row.append(generate_unsigned_value(field))
             elif isinstance(field_data_type, types.BooleanType):
                 row.append(random.choice([True, False]))
             elif isinstance(field_data_type, types.DateType):  # TODO
                 row.append(self.faker.date_this_decade())
             elif isinstance(field_data_type, types.TimestampType):  # TODO
                 row.append(self.faker.date_time_this_decade())
-            elif isinstance(field_data_type, types.LongType):  # TODO
-                row.append(random.randint(1, 100000))
             elif isinstance(field_data_type, types.DecimalType):
-                row.append(self.generate_decimal_value(field))
+                row.append(generate_decimal_value(field))
             else:
                 row.append(None)  # For unsupported types, append None
 

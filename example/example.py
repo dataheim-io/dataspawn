@@ -10,7 +10,7 @@ if __name__ == "__main__":
     spark = SparkSession.builder.getOrCreate()
 
     data_contract = DataContract(
-        data_contract_file="datacontract.yaml",
+        data_contract_file="datacontract2.yaml",
         spark=spark,
     )
 
@@ -23,7 +23,7 @@ if __name__ == "__main__":
         max_workers=4,
     )
 
-    df = spawner.generate_dataframe(spark=spark)
+    df = spawner.generate_dataframe(spark=spark, num_rows=50)
     df.show(
         truncate=False,
         vertical=True,

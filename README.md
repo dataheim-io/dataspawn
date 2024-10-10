@@ -1,6 +1,6 @@
 # DataSpawner
 
-.
+TODO.
 
 ## Get Started
 
@@ -33,16 +33,16 @@ A list of all the PySpark data types can be found [here](https://spark.apache.or
 | `DataType`              | :white_large_square: | Not supported by data contract.                                                                                                                 |
 | `DateType`              | :white_large_square: |                                                                                                                                                 |
 | `DecimalType`           | :white_check_mark:   | Requires that `precision` and `scale` is defined. A [PR](https://github.com/datacontract/datacontract-cli/pull/450) exists to handle this case. |
-| `DoubleType`            | :white_large_square: |                                                                                                                                                 |
-| `FloatType`             | :white_large_square: |                                                                                                                                                 |
+| `DoubleType`            | :white_check_mark:   |                                                                                                                                                 |
+| `FloatType`             | :white_check_mark:   |                                                                                                                                                 |
 | `IntegerType`           | :white_check_mark:   |                                                                                                                                                 |
-| `LongType`              | :white_large_square: |                                                                                                                                                 |
+| `LongType`              | :white_check_mark:   |                                                                                                                                                 |
 | `MapType`               | :white_large_square: |                                                                                                                                                 |
 | `NullType`              | :white_check_mark:   |                                                                                                                                                 |
 | `ShortType`             | :white_large_square: | Not supported by data contract.                                                                                                                 |
 | `StringType`            | :white_check_mark:   |                                                                                                                                                 |
 | `CharType`              | :white_large_square: | Not supported by data contract.                                                                                                                 |
-| `VarcharType`           | :white_large_square: | Not supported by data contract. A [PR](https://github.com/datacontract/datacontract-cli/pull/451) exists to add support for this data type.     |
+| `VarcharType`           | :white_large_square: | Not supported by data contract.                                                                                                                 |
 | `StructField`           | :white_large_square: | Not supported by data contract.                                                                                                                 |
 | `TimestampType`         | :white_large_square: |                                                                                                                                                 |
 | `TimestampNTZType`      | :white_large_square: |                                                                                                                                                 |

@@ -53,6 +53,11 @@ models:
         type: float
         minimum: -10
         maximum: 10
+      float_field_precision:
+        type: float
+        minimum: -100
+        maximum: 100
+        scale: 5
       double_field_simple:
         type: double
       double_field_minmax:
